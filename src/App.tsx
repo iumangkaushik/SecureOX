@@ -207,7 +207,7 @@ const EncryptionTool = () => {
             </motion.div>
           )}
 
-          {/* Feature list from video */}
+          {/* Feature list  */}
           <div className="pt-6 border-t border-white/10 text-[10px] text-gray-500 uppercase tracking-widest grid grid-cols-2 gap-4">
             <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-teal-500" /> AES-256-GCM Encryption</div>
             <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-teal-500" /> PBKDF2 Key Derivation</div>
@@ -219,6 +219,204 @@ const EncryptionTool = () => {
     </div>
   );
 };
+
+
+const StegoTool = () => {
+  const [activeTab, setActiveTab] = useState<'embed' | 'extract'>('embed');
+  const [image, setImage] = useState<string | null>(null);
+  const [message, setMessage] = useState('');
+  const [resultImage, setResultImage] = useState<string | null>(null);
+  const [extractedMsg, setExtractedMsg] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setImage(event.target?.result as string);
+        setResultImage(null);
+        setExtractedMsg(null);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleEmbed = async () => {
+    if (!image || !message) return;
+    setLoading(true);
+    try {
+      const img = new Image();
+      img.src = image;
+      img.onload = () => {
+        const result = embedMessage(img, message);
+        setResultImage(result);
+        setLoading(false);
+      };
+    } catch (e) {
+      setLoading(false);
+      alert('Embedding failed: ' + (e as Error).message);
+    }
+  };
+
+  const handleExtract = async () => {
+    if (!image) return;
+    setLoading(true);
+    try {
+      const img = new Image();
+      img.src = image;
+      img.onload = () => {
+        const result = extractMessage(img);
+        setExtractedMsg(result || 'No hidden message found.');
+        setLoading(false);
+      };
+    } catch (e) {
+      setLoading(false);
+      alert('Extraction failed.');
+    }
+  };
+
+  return (
+    <div id="stego" className="max-w-4xl mx-auto mt-32 mb-32">
+      <div className="text-center mb-10">
+        <h2 className="font-display font-bold text-3xl md:text-4xl mb-4">Image Steganography</h2>
+        <p className="text-gray-400">Hide and extract secret text within images using LSB manipulation.</p>
+      </div>
+
+      <div className="cyber-card overflow-hidden">
+        <div className="flex border-b border-white/10">
+          <button 
+            onClick={() => setActiveTab('embed')}
+            className={cn(
+              "flex-1 py-4 font-medium transition-all relative",
+              activeTab === 'embed' ? "text-teal-400" : "text-gray-500 hover:text-gray-300"
+            )}
+          >
+            Embed Text
+            {activeTab === 'embed' && <motion.div layoutId="stego-underline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-teal-400" />}
+          </button>
+          <button 
+            onClick={() => setActiveTab('extract')}
+            className={cn(
+              "flex-1 py-4 font-medium transition-all relative",
+              activeTab === 'extract' ? "text-teal-400" : "text-gray-500 hover:text-gray-300"
+            )}
+          >
+            Extract Text
+            {activeTab === 'extract' && <motion.div layoutId="stego-underline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-teal-400" />}
+          </button>
+        </div>
+
+        <div className="p-8 space-y-6">
+          <div className="space-y-4">
+            <label className="text-sm font-medium text-gray-400 uppercase tracking-wider">Upload Image</label>
+            <div 
+              onClick={() => fileInputRef.current?.click()}
+              className={cn(
+                "w-full h-64 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all hover:bg-white/5",
+                image ? "border-teal-500" : "border-white/10"
+              )}
+            >
+              {image ? (
+                <div className="relative group w-full h-full p-4">
+                  <img src={image} className="w-full h-full object-contain rounded-lg" alt="Upload" />
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                    <p className="text-sm font-bold">Change Image</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center space-y-4">
+                  <div className="w-16 h-16 bg-teal-500/10 rounded-full flex items-center justify-center mx-auto">
+                    <CloudUpload className="text-teal-400" size={32} />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="font-bold">Click to upload an image</p>
+                    <p className="text-xs text-gray-500 tracking-wider font-mono">JPG, PNG (max 10MB)</p>
+                  </div>
+                </div>
+              )}
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleFileChange} 
+                accept="image/*" 
+                className="hidden" 
+              />
+            </div>
+          </div>
+
+          {activeTab === 'embed' ? (
+            <>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-400 uppercase tracking-wider">Text to Embed</label>
+                <textarea 
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="Enter the secret text to hide..."
+                  className="w-full h-24 bg-white/5 border border-white/10 rounded-xl p-4 focus:outline-none focus:ring-2 focus:ring-teal-500/50 transition-all resize-none"
+                />
+              </div>
+              <button 
+                onClick={handleEmbed}
+                disabled={loading || !image || !message}
+                className="w-full py-4 bg-teal-500 hover:bg-teal-400 transition-all font-bold rounded-xl shadow-lg shadow-teal-500/20 active:scale-[0.98] flex items-center justify-center gap-2"
+              >
+                {loading ? 'Processing...' : <><Lock size={18} /> Embed Text in Image</>}
+              </button>
+
+              {resultImage && (
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 p-4 bg-teal-500/5 rounded-xl border border-teal-500/20">
+                  <p className="text-sm font-bold text-teal-400 flex items-center gap-2"><Check size={16} /> Embed successful!</p>
+                  <div className="relative aspect-video bg-black/20 rounded-lg overflow-hidden">
+                    <img src={resultImage} className="w-full h-full object-contain" alt="Result" />
+                  </div>
+                  <a 
+                    href={resultImage} 
+                    download="stego_output.png"
+                    className="w-full py-3 bg-white/10 hover:bg-white/20 border border-white/10 rounded-lg flex items-center justify-center gap-2 transition-all font-medium"
+                  >
+                    <Download size={18} /> Download Result
+                  </a>
+                </motion.div>
+              )}
+            </>
+          ) : (
+            <>
+              <button 
+                onClick={handleExtract}
+                disabled={loading || !image}
+                className="w-full py-4 bg-teal-500 hover:bg-teal-400 transition-all font-bold rounded-xl shadow-lg shadow-teal-500/20 active:scale-[0.98] flex items-center justify-center gap-2"
+              >
+                {loading ? 'Processing...' : <><Search size={18} /> Extract Hidden Text</>}
+              </button>
+
+              {extractedMsg && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
+                  <label className="text-sm font-medium text-gray-400 uppercase tracking-wider">Extracted Message</label>
+                  <div className="w-full min-h-[100px] bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 font-mono text-emerald-400 break-all overflow-y-auto">
+                    {extractedMsg}
+                  </div>
+                </motion.div>
+              )}
+            </>
+          )}
+
+          <div className="pt-6 border-t border-white/10 space-y-4">
+             <h4 className="text-xs font-bold uppercase tracking-widest text-teal-400">How It Works:</h4>
+             <ul className="text-xs text-gray-500 space-y-2 list-disc pl-4">
+                <li>Text is hidden in the least significant bits of image pixels</li>
+                <li>Changes are imperceptible to the human eye</li>
+                <li>Original image quality is preserved</li>
+                <li>Only works with lossless PNG format for extraction</li>
+             </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 
 
 export default function App() {
@@ -391,7 +589,7 @@ export default function App() {
                   <ChevronRight size={16} className="rotate-180" /> Back to Home
                 </button>
                 <EncryptionTool />
-            
+                <StegoTool />
               </div>
             </motion.div>
           )}
